@@ -21,4 +21,8 @@ class AutoREST::SQLiteDB < AutoREST::DBAdapter
             end
         end
     end
+
+    def exec_sql(sql)
+        @db_conn.execute(sql)
+    end
 end
