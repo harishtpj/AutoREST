@@ -3,3 +3,5 @@
 require_relative "../lib/autorest"
 
 AutoREST::CLI.start(ARGV)
+puts "Press any key to continue..."
+gets

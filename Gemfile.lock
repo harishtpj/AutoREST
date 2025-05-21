@@ -5,8 +5,11 @@ GEM
     logger (1.7.0)
     mustermann (3.0.3)
       ruby2_keywords (~> 0.0.1)
+    nio4r (2.7.4)
     pastel (0.8.0)
       tty-color (~> 0.5)
+    puma (6.6.0)
+      nio4r (~> 2.0)
     rack (3.1.15)
     rack-protection (4.1.1)
       base64 (>= 0.1.0)
@@ -42,8 +45,9 @@ PLATFORMS
   x64-mingw-ucrt
 
 DEPENDENCIES
+  puma
   sinatra
-  sqlite3 (~> 2.6)
+  sqlite3
   thor
   tty-prompt
 
