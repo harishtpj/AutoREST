@@ -10,6 +10,7 @@ require_relative "autorest/version"
 require_relative "autorest/server"
 require_relative "autorest/db/sqlite"
 require_relative "autorest/db/mysql"
+require_relative "autorest/db/postgres"
 
 class AutoREST::CLI < Thor
     def self.exit_on_failure?
@@ -30,7 +31,7 @@ class AutoREST::CLI < Thor
         puts "Welcome to AutoREST API Server Generator"
         project_name = prompt.ask("Enter the project's name:")
         opts[:db][:kind] = prompt.select("Select your database:",
-                                {"SQLite" => :sqlite, "MySQL" => :mysql}, 
+                                {"SQLite" => :sqlite, "MySQL" => :mysql, "PostgreSQL" => :pg}, 
                                 default: "SQLite")
 
         if opts[:db][:kind] == :sqlite
@@ -42,7 +43,12 @@ class AutoREST::CLI < Thor
             opts[:db][:user] = prompt.ask("Enter username:", default: "root")
             opts[:db][:passwd] = prompt.ask("Enter password:", echo: false)
             opts[:db][:name] = prompt.ask("Enter database name:")
-            db = AutoREST::MySQLDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
+            case opts[:db][:kind]
+            when :mysql
+                db = AutoREST::MySQLDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
+            when :pg
+                db = AutoREST::PostgresDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
+            end
         end
 
         opts[:db][:tables] = prompt.multi_select("Select tables from database:", db.tables)
@@ -65,9 +71,12 @@ class AutoREST::CLI < Thor
         if opts[:db][:kind] == :sqlite
             db = AutoREST::SQLiteDB.new(opts[:db][:name])
         else
-            db = AutoREST::MySQLDB.new(
-                opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name]
-            )
+            case opts[:db][:kind]
+            when :mysql
+                db = AutoREST::MySQLDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
+            when :pg
+                db = AutoREST::PostgresDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
+            end
         end
         db.prepare
         db.set_access_tables(opts[:db][:tables])
@@ -86,9 +95,13 @@ class AutoREST::CLI < Thor
             table, *_ = uri.path.sub(/^\//, '').split('/')
         else
             database, table = uri.path.sub(/^\//, '').split('/')
-            db = AutoREST::MySQLDB.new(
-                uri.host, uri.port, uri.user, uri.password, database
-            )
+            passwd = URI.decode_www_form_component(uri.password)
+            case uri.scheme
+            when "mysql"
+                db = AutoREST::MySQLDB.new(uri.host, uri.port, uri.user, passwd, database)
+            when "pg"
+                db = AutoREST::PostgresDB.new(uri.host, uri.port, uri.user, passwd, database)
+            end
         end
         db.prepare
         db.set_access_tables([table])
