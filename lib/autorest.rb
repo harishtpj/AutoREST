@@ -7,7 +7,7 @@ require "rack/handler/puma"
 
 require_relative "autorest/version"
 require_relative "autorest/server"
-require_relative "autorest/db/adapter"
+require_relative "autorest/db/sqlite"
 
 class AutoREST::CLI < Thor
     def self.exit_on_failure?
@@ -24,23 +24,26 @@ class AutoREST::CLI < Thor
     desc "new", "Creates a new AutoREST API server"
     def new
         prompt = TTY::Prompt.new
+        opts = {db: {}, server: {}}
         puts "Welcome to AutoREST API Server Generator"
-
-        dbkind = prompt.select("Select your database:", 
+        opts[:db][:kind] = prompt.select("Select your database:",
                                 {"SQLite" => :sqlite, "MySQL" => :mysql}, 
                                 default: "SQLite")
 
-        dbname = prompt.ask("Enter your database name:")
-        db = SQLite3::Database.new(dbname)
-        db.results_as_hash = true
-        db_obj = AutoREST::DBAdapter.new(dbkind, dbname, db)
+        if opts[:db][:kind] == :sqlite
+            opts[:db][:name] = prompt.ask("Enter your database name:")
+            db = AutoREST::SQLiteDB.new(opts[:db][:name])
+        else
+            # TODO: Add MySQL support
+        end
 
-        dbtable = prompt.select("Select table from database:", db_obj.tables)
+        opts[:db][:tables] = prompt.multi_select("Select tables from database:", db.tables)
+        db.set_access_tables(opts[:db][:tables])
         puts "Creating configuration file..."
         puts "Successfully completed!"
         puts "-" * 30
         puts "Starting server..."
-        server = AutoREST::Server.new(db_obj, dbtable)
+        server = AutoREST::Server.new(db)
         Rack::Handler::Puma.run(server, Port: 7914)
     end
 end

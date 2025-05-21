@@ -2,7 +2,7 @@
 require "sinatra/base"
 
 class AutoREST::Server < Sinatra::Base
-    def initialize(db_conn, tables)
+    def initialize(db_conn)
         super()
         @db_conn = db_conn
     end
@@ -11,19 +11,40 @@ class AutoREST::Server < Sinatra::Base
         content_type :json
     end
 
+    helpers do
+        def error(msg, status = 400)
+            halt status, { error: msg }.to_json
+        end
+    end
+
     get '/' do
         { message: "Welcome to AutoREST API Server" }.to_json
     end
 
-    get '/:table' do |tname|
-        @db_conn.rows(tname).to_json
+    get '/:table/?' do |tname|
+        q = @db_conn.rows(tname)
+        if q.is_a?(String)
+            code, msg = q.split(": ", 2)
+            error(msg, code.to_i)
+        end
+        q.to_json
     end
 
-    get '/:table/:pk' do |tname, pk|
-        @db_conn.row(tname, pk).to_json
+    get '/:table/:pk/?' do |tname, pk|
+        q = @db_conn.row(tname, pk)
+        if q.is_a?(String)
+            code, msg = q.split(": ", 2)
+            error(msg, code.to_i)
+        end
+        q.to_json
     end
 
-    delete '/:table/:pk' do |tname, pk|
-        @db_conn.del_row(tname, pk)
+    delete '/:table/:pk/?' do |tname, pk|
+        q = @db_conn.del_row(tname, pk)
+        if q.is_a?(String)
+            code, msg = q.split(": ", 2)
+            error(msg, code.to_i)
+        end
+        q.to_json
     end
 end

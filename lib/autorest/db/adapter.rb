@@ -1,7 +1,6 @@
 # Database Adapter to provide access to data from database
 
 class AutoREST::DBAdapter
-
     def initialize(db_kind, db_name, db_conn)
         @db_kind = db_kind
         @dbname = db_name
@@ -10,15 +9,11 @@ class AutoREST::DBAdapter
     end
 
     def prepare
-        @tables = {}
-        @db_conn.execute("SELECT name FROM sqlite_master WHERE type='table'").each do |t|
-            tname = t['name']
-            row_details = @db_conn.execute("select name, type, pk from pragma_table_info('#{tname}')")
-            @tables[tname] = {}
-            row_details.each do |row|
-                @tables[tname][row['name']] = {type: row['type'], pk: row['pk'] == 1}
-            end
-        end
+        raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+    end
+
+    def set_access_tables(access_tab)
+        @access_tables = access_tab.empty? ? @tables.keys : access_tab
     end
 
     def tables
@@ -33,17 +28,30 @@ class AutoREST::DBAdapter
 
     def rows(table_name, cols = "*")
         prepare if @tables.nil?
-        @db_conn.execute("select #{cols} from #{table_name}")
+        return "404: Table #{table_name} does not exist" unless @tables.include?(table_name)
+        return "403: Insufficient rights to access Table #{table_name}" unless @access_tables.include?(table_name)
+        result = @db_conn.execute("select #{cols} from #{table_name}")
+        return "404: Table #{table_name} is empty" if result.empty?
+        result
     end
 
     def row(table_name, value, cols = "*")
         prepare if @tables.nil?
-        @db_conn.execute("select #{cols} from #{table_name} where #{pkey(table_name)} = '#{value}'")
+        return "404: Table #{table_name} does not exist" unless @tables.include?(table_name)
+        return "403: Insufficient rights to access Table #{table_name}" unless @access_tables.include?(table_name)
+        result = @db_conn.execute("select #{cols} from #{table_name} where #{pkey(table_name)} = '#{value}'")
+        return "404: Row not found" if result.empty?
+        result
     end
 
     def del_row(table_name, value)
         prepare if @tables.nil?
+        return "404: Table #{table_name} does not exist" unless @tables.include?(table_name)
+        return "403: Insufficient rights to delete Table #{table_name}" unless @access_tables.include?(table_name)
+        result = row(table_name, value)
+        return result if result.is_a?(String)
         @db_conn.execute("delete from #{table_name} where #{pkey(table_name)} = '#{value}'")
+        result
     end
 
     private
