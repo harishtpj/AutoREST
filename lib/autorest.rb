@@ -3,6 +3,7 @@ require "thor"
 require "tty-prompt"
 require "rack"
 require "rack/handler/puma"
+require "yaml"
 
 require_relative "autorest/version"
 require_relative "autorest/server"
@@ -24,8 +25,9 @@ class AutoREST::CLI < Thor
     desc "new", "Creates a new AutoREST API server"
     def new
         prompt = TTY::Prompt.new
-        opts = {db: {}, server: {}}
+        opts = {db: {}, server: { host: "localhost", port: 7914 } }
         puts "Welcome to AutoREST API Server Generator"
+        project_name = prompt.ask("Enter the project's name:")
         opts[:db][:kind] = prompt.select("Select your database:",
                                 {"SQLite" => :sqlite, "MySQL" => :mysql}, 
                                 default: "SQLite")
@@ -33,10 +35,10 @@ class AutoREST::CLI < Thor
         if opts[:db][:kind] == :sqlite
             opts[:db][:name] = prompt.ask("Enter location of DB file:")
             db = AutoREST::SQLiteDB.new(opts[:db][:name])
-        elsif opts[:db][:kind] == :mysql
+        else
             opts[:db][:host] = prompt.ask("Enter hostname of DB:", default: "localhost")
             opts[:db][:port] = prompt.ask("Enter port of DB:", default: 3306)
-            opts[:db][:user] = prompt.ask("Enter username for MySQL:", default: "root")
+            opts[:db][:user] = prompt.ask("Enter username:", default: "root")
             opts[:db][:passwd] = prompt.ask("Enter password:", echo: false)
             opts[:db][:name] = prompt.ask("Enter database name:")
             db = AutoREST::MySQLDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
@@ -45,10 +47,32 @@ class AutoREST::CLI < Thor
         opts[:db][:tables] = prompt.multi_select("Select tables from database:", db.tables)
         db.set_access_tables(opts[:db][:tables])
         puts "Creating configuration file..."
+        File.open("#{project_name}.yml", "w") do |f|
+            f.write(opts.to_yaml)
+        end
         puts "Successfully completed!"
         puts "-" * 30
         puts "Starting server..."
         server = AutoREST::Server.new(db)
         Rack::Handler::Puma.run(server, Port: 7914)
+    end
+
+    map "-S" => "server"
+    desc "server FILE", "Starts the AutoREST API server using a configuration file"
+    def server(file)
+        opts = YAML.load_file(file)
+        if opts[:db][:kind] == :sqlite
+            db = AutoREST::SQLiteDB.new(opts[:db][:name])
+        else
+            db = AutoREST::MySQLDB.new(
+                opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name]
+            )
+        end
+        db.prepare
+        db.set_access_tables(opts[:db][:tables])
+        puts "Starting server..."
+        server = AutoREST::Server.new(db)
+        servinfo = opts.fetch(:server, { host: "localhost", port: 7914})
+        Rack::Handler::Puma.run(server, Host: servinfo[:host], Port: servinfo[:port])
     end
 end

@@ -65,6 +65,7 @@ class AutoREST::DBAdapter
         return "403: Insufficient rights to update Table #{table_name}" unless @access_tables.include?(table_name)
         return "404: Row not found" unless has_row(table_name, pk)
         return "422: Primary key mismatch" if (pk != value[pkey(table_name)].to_s && !patch)
+        return "422: Invalid data" if (value.keys & columns(table_name) != value.keys)
         kvpairs = value.map { |k, v| "#{k} = #{v.inspect}" }.join(", ")
         exec_sql("update #{table_name} set #{kvpairs} where #{pkey(table_name)} = '#{pk}'")
         row(table_name, pk)
