@@ -1,6 +1,5 @@
 # The main executable for AutoREST
 require "thor"
-require "sqlite3"
 require "tty-prompt"
 require "rack"
 require "rack/handler/puma"

@@ -44,6 +44,18 @@ class AutoREST::DBAdapter
         result
     end
 
+    def insert(table_name, data)
+        prepare if @tables.nil?
+        return "404: Table #{table_name} does not exist" unless @tables.include?(table_name)
+        return "403: Insufficient rights to access Table #{table_name}" unless @access_tables.include?(table_name)
+        has_row = !row(table_name, data[pkey(table_name)]).is_a?(String)
+        return "409: Row already exists" if has_row
+        cols = data.keys.join(", ")
+        values = data.values.map(&:inspect).join(", ")
+        @db_conn.execute("insert into #{table_name} (#{cols}) values (#{values})")
+        row(table_name, data[pkey(table_name)])
+    end
+
     def del_row(table_name, value)
         prepare if @tables.nil?
         return "404: Table #{table_name} does not exist" unless @tables.include?(table_name)
