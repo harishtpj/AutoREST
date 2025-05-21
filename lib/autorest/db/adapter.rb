@@ -48,12 +48,22 @@ class AutoREST::DBAdapter
         prepare if @tables.nil?
         return "404: Table #{table_name} does not exist" unless @tables.include?(table_name)
         return "403: Insufficient rights to access Table #{table_name}" unless @access_tables.include?(table_name)
-        has_row = !row(table_name, data[pkey(table_name)]).is_a?(String)
-        return "409: Row already exists" if has_row
+        return "409: Row already exists" if has_row(table_name, data[pkey(table_name)])
         cols = data.keys.join(", ")
         values = data.values.map(&:inspect).join(", ")
         @db_conn.execute("insert into #{table_name} (#{cols}) values (#{values})")
         row(table_name, data[pkey(table_name)])
+    end
+
+    def update(table_name, pk, value, patch = false)
+        prepare if @tables.nil?
+        return "404: Table #{table_name} does not exist" unless @tables.include?(table_name)
+        return "403: Insufficient rights to update Table #{table_name}" unless @access_tables.include?(table_name)
+        return "404: Row not found" unless has_row(table_name, pk)
+        return "422: Primary key mismatch" if (pk != value[pkey(table_name)].to_s && !patch)
+        kvpairs = value.map { |k, v| "#{k} = #{v.inspect}" }.join(", ")
+        @db_conn.execute("update #{table_name} set #{kvpairs} where #{pkey(table_name)} = '#{pk}'")
+        row(table_name, pk)
     end
 
     def del_row(table_name, value)
@@ -69,5 +79,9 @@ class AutoREST::DBAdapter
     private
         def pkey(table_name)
             @tables[table_name].keys.find { |k| @tables[table_name][k][:pk] }
+        end
+
+        def has_row(table_name, value)
+            !row(table_name, value).is_a?(String)
         end
 end

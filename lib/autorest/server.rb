@@ -38,6 +38,7 @@ class AutoREST::Server < Sinatra::Base
 
     post '/:table/?' do |tname|
         data = get_body(request)
+        error("Incomplete request body") if data.empty?
         q = @db_conn.insert(tname, data)
         if q.is_a?(String)
             code, msg = q.split(": ", 2)
@@ -49,6 +50,28 @@ class AutoREST::Server < Sinatra::Base
     get '/:table/:pk/?' do |tname, pk|
         cols = params["only"] || "*"
         q = @db_conn.row(tname, pk, cols)
+        if q.is_a?(String)
+            code, msg = q.split(": ", 2)
+            error(msg, code.to_i)
+        end
+        q.to_json
+    end
+
+    put '/:table/:pk/?' do |tname, pk|
+        data = get_body(request)
+        error("Incomplete request body") if (data.empty? || data.keys != @db_conn.columns(tname))
+        q = @db_conn.update(tname, pk, data)
+        if q.is_a?(String)
+            code, msg = q.split(": ", 2)
+            error(msg, code.to_i)
+        end
+        q.to_json
+    end
+
+    patch '/:table/:pk/?' do |tname, pk|
+        data = get_body(request)
+        error("Incomplete request body") if data.empty?
+        q = @db_conn.update(tname, pk, data, true)
         if q.is_a?(String)
             code, msg = q.split(": ", 2)
             error(msg, code.to_i)
