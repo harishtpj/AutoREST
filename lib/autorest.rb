@@ -4,6 +4,7 @@ require "tty-prompt"
 require "rack"
 require "rack/handler/puma"
 require "yaml"
+require "uri"
 
 require_relative "autorest/version"
 require_relative "autorest/server"
@@ -54,7 +55,7 @@ class AutoREST::CLI < Thor
         puts "-" * 30
         puts "Starting server..."
         server = AutoREST::Server.new(db)
-        Rack::Handler::Puma.run(server, Port: 7914)
+        Rack::Handler::Puma.run(server, Host: "localhost", Port: 7914)
     end
 
     map "-S" => "server"
@@ -74,5 +75,25 @@ class AutoREST::CLI < Thor
         server = AutoREST::Server.new(db)
         servinfo = opts.fetch(:server, { host: "localhost", port: 7914})
         Rack::Handler::Puma.run(server, Host: servinfo[:host], Port: servinfo[:port])
+    end
+
+    map "-s" => "boot"
+    desc "boot DSN", "Starts the AutoREST API server using a DSN"
+    def boot(dsn)
+        uri = URI.parse(dsn)
+        if uri.scheme == "sqlite"
+            db = AutoREST::SQLiteDB.new(uri.host)
+            table, *_ = uri.path.sub(/^\//, '').split('/')
+        else
+            database, table = uri.path.sub(/^\//, '').split('/')
+            db = AutoREST::MySQLDB.new(
+                uri.host, uri.port, uri.user, uri.password, database
+            )
+        end
+        db.prepare
+        db.set_access_tables([table])
+        server = AutoREST::Server.new(db)
+        puts "Starting server..."
+        Rack::Handler::Puma.run(server, Host: "localhost", Port: 7914)
     end
 end
