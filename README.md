@@ -81,6 +81,8 @@ $ autorest server <path/to/config>.yml
 $ autorest boot mysql://[username]:[password]@[host]:[port]/[database]/[table_name]
 ```
 
+For more information visit [AutoREST documentation](https://www.rubydoc.info/gems/autorest).
+
 # 📦 Configuration example
 ```yaml
 db:
