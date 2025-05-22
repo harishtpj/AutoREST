@@ -1,4 +1,18 @@
 # The main executable for AutoREST
+#
+# This file defines the command-line interface (CLI) for the AutoREST gem using Thor.
+# The CLI allows users to generate a new AutoREST API server, start the server using 
+# a configuration file or DSN, and view the current version of the API.
+#
+# Commands:
+# - `version`: Prints the version of AutoREST.
+# - `new`: Creates a new AutoREST API server project.
+# - `server FILE`: Starts the AutoREST API server using a configuration file.
+# - `boot DSN`: Starts the AutoREST API server using a DSN.
+#
+# The commands involve setting up a database connection and starting a server with 
+# specified parameters such as the host, port, and database tables.
+
 require "thor"
 require "tty-prompt"
 require "rack"
@@ -8,10 +22,6 @@ require "uri"
 
 require_relative "autorest/version"
 require_relative "autorest/server"
-require_relative "autorest/db/sqlite"
-require_relative "autorest/db/mysql"
-require_relative "autorest/db/postgres"
-require_relative "autorest/db/oracle"
 
 class AutoREST::CLI < Thor
     def self.exit_on_failure?
@@ -36,6 +46,7 @@ class AutoREST::CLI < Thor
                                 default: "SQLite")
 
         if opts[:db][:kind] == :sqlite
+            require_relative "autorest/db/sqlite"
             opts[:db][:name] = prompt.ask("Enter location of DB file:")
             db = AutoREST::SQLiteDB.new(opts[:db][:name])
         else
@@ -48,10 +59,13 @@ class AutoREST::CLI < Thor
             opts[:db][:name] = prompt.ask("Enter database #{opts[:db][:kind] == :orcl ? "SID" : "name"}:")
             case opts[:db][:kind]
             when :mysql
+                require_relative "autorest/db/mysql"
                 db = AutoREST::MySQLDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
             when :pg
+                require_relative "autorest/db/postgres"
                 db = AutoREST::PostgresDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
             when :orcl
+                require_relative "autorest/db/oracle"
                 db = AutoREST::OracleDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
             end
         end
@@ -70,17 +84,19 @@ class AutoREST::CLI < Thor
     desc "server FILE", "Starts the AutoREST API server using a configuration file"
     def server(file)
         opts = YAML.load_file(file)
-        if opts[:db][:kind] == :sqlite
+        case opts[:db][:kind]
+        when :sqlite
+            require_relative "autorest/db/sqlite"
             db = AutoREST::SQLiteDB.new(opts[:db][:name])
-        else
-            case opts[:db][:kind]
-            when :mysql
-                db = AutoREST::MySQLDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
-            when :pg
-                db = AutoREST::PostgresDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
-            when :orcl
-                db = AutoREST::OracleDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
-            end
+        when :mysql
+            require_relative "autorest/db/mysql"
+            db = AutoREST::MySQLDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
+        when :pg
+            require_relative "autorest/db/postgres"
+            db = AutoREST::PostgresDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
+        when :orcl
+            require_relative "autorest/db/oracle"
+            db = AutoREST::OracleDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
         end
         db.prepare
         db.set_access_tables(opts[:db][:tables])
@@ -93,6 +109,7 @@ class AutoREST::CLI < Thor
     def boot(dsn)
         uri = URI.parse(dsn)
         if uri.scheme == "sqlite"
+            require_relative "autorest/db/sqlite"
             db = AutoREST::SQLiteDB.new(uri.host)
             table, *_ = uri.path.sub(/^\//, '').split('/')
         else
@@ -100,10 +117,13 @@ class AutoREST::CLI < Thor
             passwd = URI.decode_www_form_component(uri.password)
             case uri.scheme
             when "mysql"
+                require_relative "autorest/db/mysql"
                 db = AutoREST::MySQLDB.new(uri.host, uri.port, uri.user, passwd, database)
             when "pg"
+                require_relative "autorest/db/postgres"
                 db = AutoREST::PostgresDB.new(uri.host, uri.port, uri.user, passwd, database)
             when "orcl"
+                require_relative "autorest/db/oracle"
                 db = AutoREST::OracleDB.new(uri.host, uri.port, uri.user, passwd, database)
             end
         end
