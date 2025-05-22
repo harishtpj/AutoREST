@@ -24,18 +24,23 @@ require_relative "autorest/version"
 require_relative "autorest/server"
 
 class AutoREST::CLI < Thor
+
+    # Determines if the program should exit on failure
     def self.exit_on_failure?
         true
     end
 
     map "-v" => "version"
     desc "version", "Prints the version of AutoREST"
+    # Prints the version of AutoREST
     def version
         puts "AutoREST v#{AutoREST::VERSION}"
     end
 
     map "-n" => "new"
     desc "new", "Creates a new AutoREST API server"
+    # Creates a new AutoREST API server project
+    # Prompts the user for database details and creates a configuration file.
     def new
         prompt = TTY::Prompt.new
         opts = {db: {}, server: { host: "localhost", port: 7914 } }
@@ -81,7 +86,9 @@ class AutoREST::CLI < Thor
     end
 
     map "-S" => "server"
-    desc "server FILE", "Starts the AutoREST API server using a configuration file"
+    desc "server FILE", "Starts the AutoREST API server using a config file"
+    # Starts the AutoREST API server using a configuration file
+    # Loads the configuration file and starts the server with the specified database settings.
     def server(file)
         opts = YAML.load_file(file)
         case opts[:db][:kind]
@@ -106,6 +113,8 @@ class AutoREST::CLI < Thor
 
     map "-s" => "boot"
     desc "boot DSN", "Starts the AutoREST API server using a DSN"
+    # Starts the AutoREST API server using a DSN (Data Source Name)
+    # Parses the DSN and starts the server using the corresponding database.
     def boot(dsn)
         uri = URI.parse(dsn)
         if uri.scheme == "sqlite"
@@ -133,6 +142,7 @@ class AutoREST::CLI < Thor
     end
 
     no_commands do
+        # Starts the AutoREST server
         def start_server(db, host = "localhost", port = 7914)
             server = AutoREST::Server.new(db)
             puts "Starting server..."
