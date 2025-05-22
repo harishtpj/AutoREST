@@ -25,4 +25,8 @@ class AutoREST::SQLiteDB < AutoREST::DBAdapter
     def exec_sql(sql)
         @db_conn.execute(sql)
     end
+
+    def escape(input)
+        SQLite3::Database.quote(input)
+    end
 end

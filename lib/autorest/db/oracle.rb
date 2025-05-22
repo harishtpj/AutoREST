@@ -51,4 +51,8 @@ class AutoREST::OracleDB < AutoREST::DBAdapter
     def close
         @db_conn.logoff
     end
+
+    def escape(input)
+        input.to_s.gsub("'", "''")
+    end
 end

@@ -44,4 +44,8 @@ class AutoREST::PostgresDB < AutoREST::DBAdapter
     def exec_sql(sql)
         @db_conn.exec(sql).to_a
     end
+
+    def escape(input)
+        @db_conn.escape_string(input)
+    end
 end

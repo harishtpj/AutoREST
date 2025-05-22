@@ -24,4 +24,8 @@ class AutoREST::MySQLDB < AutoREST::DBAdapter
     def exec_sql(sql)
         @db_conn.query(sql).to_a
     end
+
+    def escape(input)
+        @db_conn.escape(input)
+    end
 end
