@@ -11,6 +11,7 @@ require_relative "autorest/server"
 require_relative "autorest/db/sqlite"
 require_relative "autorest/db/mysql"
 require_relative "autorest/db/postgres"
+require_relative "autorest/db/oracle"
 
 class AutoREST::CLI < Thor
     def self.exit_on_failure?
@@ -31,23 +32,27 @@ class AutoREST::CLI < Thor
         puts "Welcome to AutoREST API Server Generator"
         project_name = prompt.ask("Enter the project's name:")
         opts[:db][:kind] = prompt.select("Select your database:",
-                                {"SQLite" => :sqlite, "MySQL" => :mysql, "PostgreSQL" => :pg}, 
+                                {"SQLite" => :sqlite, "MySQL" => :mysql, "PostgreSQL" => :pg, "Oracle" => :orcl}, 
                                 default: "SQLite")
 
         if opts[:db][:kind] == :sqlite
             opts[:db][:name] = prompt.ask("Enter location of DB file:")
             db = AutoREST::SQLiteDB.new(opts[:db][:name])
         else
+            def_port = {mysql: 3306, pg: 5432, orcl: 1521}
+            def_usr = {mysql: "root", pg: "postgres", orcl: "SYS"}
             opts[:db][:host] = prompt.ask("Enter hostname of DB:", default: "localhost")
-            opts[:db][:port] = prompt.ask("Enter port of DB:", default: 3306)
-            opts[:db][:user] = prompt.ask("Enter username:", default: "root")
+            opts[:db][:port] = prompt.ask("Enter port of DB:", default: def_port[opts[:db][:kind]])
+            opts[:db][:user] = prompt.ask("Enter username:", default: def_usr[opts[:db][:kind]])
             opts[:db][:passwd] = prompt.ask("Enter password:", echo: false)
-            opts[:db][:name] = prompt.ask("Enter database name:")
+            opts[:db][:name] = prompt.ask("Enter database #{opts[:db][:kind] == :orcl ? "SID" : "name"}:")
             case opts[:db][:kind]
             when :mysql
                 db = AutoREST::MySQLDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
             when :pg
                 db = AutoREST::PostgresDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
+            when :orcl
+                db = AutoREST::OracleDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
             end
         end
 
@@ -58,10 +63,7 @@ class AutoREST::CLI < Thor
             f.write(opts.to_yaml)
         end
         puts "Successfully completed!"
-        puts "-" * 30
-        puts "Starting server..."
-        server = AutoREST::Server.new(db)
-        Rack::Handler::Puma.run(server, Host: "localhost", Port: 7914)
+        start_server(db)
     end
 
     map "-S" => "server"
@@ -76,14 +78,14 @@ class AutoREST::CLI < Thor
                 db = AutoREST::MySQLDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
             when :pg
                 db = AutoREST::PostgresDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
+            when :orcl
+                db = AutoREST::OracleDB.new(opts[:db][:host], opts[:db][:port], opts[:db][:user], opts[:db][:passwd], opts[:db][:name])
             end
         end
         db.prepare
         db.set_access_tables(opts[:db][:tables])
-        puts "Starting server..."
-        server = AutoREST::Server.new(db)
         servinfo = opts.fetch(:server, { host: "localhost", port: 7914})
-        Rack::Handler::Puma.run(server, Host: servinfo[:host], Port: servinfo[:port])
+        start_server(db, servinfo[:host], servinfo[:port])
     end
 
     map "-s" => "boot"
@@ -101,12 +103,21 @@ class AutoREST::CLI < Thor
                 db = AutoREST::MySQLDB.new(uri.host, uri.port, uri.user, passwd, database)
             when "pg"
                 db = AutoREST::PostgresDB.new(uri.host, uri.port, uri.user, passwd, database)
+            when "orcl"
+                db = AutoREST::OracleDB.new(uri.host, uri.port, uri.user, passwd, database)
             end
         end
         db.prepare
         db.set_access_tables([table])
-        server = AutoREST::Server.new(db)
-        puts "Starting server..."
-        Rack::Handler::Puma.run(server, Host: "localhost", Port: 7914)
+        start_server(db)
+    end
+
+    no_commands do
+        def start_server(db, host = "localhost", port = 7914)
+            server = AutoREST::Server.new(db)
+            puts "Starting server..."
+            Rack::Handler::Puma.run(server, Host: host, Port: port)
+            db.close
+        end
     end
 end

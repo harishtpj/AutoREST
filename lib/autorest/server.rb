@@ -49,6 +49,7 @@ class AutoREST::Server < Sinatra::Base
 
     get '/:table/:pk/?' do |tname, pk|
         cols = params["only"] || "*"
+        pk = pk.match?(/\A-?\d+(\.\d+)?\z/) ? pk.to_i : pk
         q = @db_conn.row(tname, pk, cols)
         if q.is_a?(String)
             code, msg = q.split(": ", 2)
@@ -60,6 +61,7 @@ class AutoREST::Server < Sinatra::Base
     put '/:table/:pk/?' do |tname, pk|
         data = get_body(request)
         error("Incomplete request body") if (data.empty? || data.keys != @db_conn.columns(tname))
+        pk = pk.match?(/\A-?\d+(\.\d+)?\z/) ? pk.to_i : pk
         q = @db_conn.update(tname, pk, data)
         if q.is_a?(String)
             code, msg = q.split(": ", 2)
@@ -71,6 +73,7 @@ class AutoREST::Server < Sinatra::Base
     patch '/:table/:pk/?' do |tname, pk|
         data = get_body(request)
         error("Incomplete request body") if data.empty?
+        pk = pk.match?(/\A-?\d+(\.\d+)?\z/) ? pk.to_i : pk
         q = @db_conn.update(tname, pk, data, true)
         if q.is_a?(String)
             code, msg = q.split(": ", 2)
@@ -80,6 +83,7 @@ class AutoREST::Server < Sinatra::Base
     end
 
     delete '/:table/:pk/?' do |tname, pk|
+        pk = pk.match?(/\A-?\d+(\.\d+)?\z/) ? pk.to_i : pk
         q = @db_conn.del_row(tname, pk)
         if q.is_a?(String)
             code, msg = q.split(": ", 2)

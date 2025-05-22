@@ -43,7 +43,8 @@ class AutoREST::DBAdapter
         prepare if @tables.nil?
         return "404: Table #{table_name} does not exist" unless @tables.include?(table_name)
         return "403: Insufficient rights to access Table #{table_name}" unless @access_tables.include?(table_name)
-        result = exec_sql("select #{cols} from #{table_name} where #{pkey(table_name)} = '#{value}'")
+        return "502: Table does not have primary key" if pkey(table_name).nil?
+        result = exec_sql(p "select #{cols} from #{table_name} where #{pkey(table_name)} = #{value.inspect}")
         return "404: Row not found" if result.empty?
         result
     end
@@ -67,7 +68,7 @@ class AutoREST::DBAdapter
         return "422: Primary key mismatch" if (pk != value[pkey(table_name)].to_s && !patch)
         return "422: Invalid data" if (value.keys & columns(table_name) != value.keys)
         kvpairs = value.map { |k, v| "#{k} = #{v.inspect}" }.join(", ")
-        exec_sql("update #{table_name} set #{kvpairs} where #{pkey(table_name)} = '#{pk}'")
+        exec_sql("update #{table_name} set #{kvpairs} where #{pkey(table_name)} = #{pk.inspect}")
         row(table_name, pk)
     end
 
@@ -77,8 +78,12 @@ class AutoREST::DBAdapter
         return "403: Insufficient rights to delete Table #{table_name}" unless @access_tables.include?(table_name)
         result = row(table_name, value)
         return result if result.is_a?(String)
-        exec_sql("delete from #{table_name} where #{pkey(table_name)} = '#{value}'")
+        exec_sql("delete from #{table_name} where #{pkey(table_name)} = #{value.inspect}")
         result
+    end
+
+    def close
+        @db_conn.close
     end
 
     private
