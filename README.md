@@ -86,7 +86,7 @@ For more information visit [AutoREST documentation](https://www.rubydoc.info/gem
 # 📦 Configuration example
 ```yaml
 db:
-  kind: mysql # sqlite, mysql, pg, orcl
+  kind: :mysql # :sqlite, :mysql, :pg, :orcl
   host: localhost
   port: 3306
   user: root
@@ -107,7 +107,7 @@ Once the server is running, you can access the following RESTful API endpoints f
 * `POST /<table>` - Creates a new row in table
 * `PUT /<table>/:id` - Updates an existing row by ID (or any primary key)
 * `PATCH /<table>/:id` - Updates an existing row by ID (or any primary key)
-* `DELETE /users/:id` - Deletes a user by ID
+* `DELETE /<table>/:id` - Deletes a row by ID (or any primary key)
 
 The `PATCH` method simply allows one to update a subset of the columns, whereas the `PUT` method allows one to update all columns.
 
